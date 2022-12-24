@@ -1,10 +1,16 @@
 // 🚩 Dada Ki Jay Ho 🚩
 
 import 'package:flutter/material.dart';
+import 'package:carousel_slider/carousel_slider.dart';
 import 'package:video_player/video_player.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    const MaterialApp(
+      title: "My Video App",
+      home: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatefulWidget {
@@ -15,12 +21,13 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  late VideoPlayerController _controller;
+  late VideoPlayerController _videoController;
+  List<String> images = ["sea.jpg", "sunrise.jpg", "tree.jpg"];
 
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.asset('assets/MyDemoVideo.mp4')
+    _videoController = VideoPlayerController.asset('assets/MyDemoVideo.mp4')
       ..initialize().then((_) {
         setState(() {});
       });
@@ -28,28 +35,50 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: "My Video App",
-      home: Scaffold(
-        body: Center(
-          child: _controller.value.isInitialized
-              ? AspectRatio(
-                  aspectRatio: _controller.value.aspectRatio,
-                  child: VideoPlayer(_controller),
-                )
-              : Container(),
-        ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            setState(() {
-              _controller.value.isPlaying
-                  ? _controller.pause()
-                  : _controller.play();
-            });
+    return Scaffold(
+      body: CarouselSlider(
+        options: CarouselOptions(
+          aspectRatio: 4 / 5,
+          enableInfiniteScroll: false,
+          clipBehavior: Clip.antiAlias,
+          onPageChanged: (index, reason) {
+            if (index != 0 && _videoController.value.isPlaying) {
+              _videoController.pause();
+            } else if (_videoController.value.isPlaying == false &&
+                index == 0) {
+              _videoController.play();
+            }
           },
-          child: Icon(
-            _controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
-          ),
+        ),
+        items: [
+          // Don't know why but Video was flickring hence, i used ClipRect
+          ClipRect(child: VideoPlayer(_videoController)),
+          ...(List.generate(
+            images.length,
+            (index) {
+              return Container(
+                width: MediaQuery.of(context).size.width,
+                margin: const EdgeInsets.symmetric(horizontal: 5.0),
+                decoration: const BoxDecoration(color: Colors.amber),
+                child: Image.asset(
+                  "assets/images/${images[index]}",
+                  fit: BoxFit.cover,
+                ),
+              );
+            },
+          ).toList()),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          setState(() {
+            _videoController.value.isPlaying
+                ? _videoController.pause()
+                : _videoController.play();
+          });
+        },
+        child: Icon(
+          _videoController.value.isPlaying ? Icons.pause : Icons.play_arrow,
         ),
       ),
     );
@@ -58,6 +87,6 @@ class _MyAppState extends State<MyApp> {
   @override
   void dispose() {
     super.dispose();
-    _controller.dispose();
+    _videoController.dispose();
   }
 }
