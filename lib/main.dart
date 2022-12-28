@@ -1,23 +1,82 @@
+// Dada ki jay ho
 
 import 'dart:math' as math;
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:video_app/Bloc/data/model/api_result_model.dart';
+import 'package:video_app/Bloc/data/repository/media_repository.dart';
+import 'package:video_app/Bloc/media/media_bloc.dart';
+import 'package:video_app/Bloc/media/media_events.dart';
+import 'package:video_app/Bloc/media/media_state.dart';
 import 'package:video_player/video_player.dart';
-import 'package:video_app/constants/utils.dart';
+import 'package:video_app/Bloc/constants/utils.dart';
 
 void main() {
-  runApp(
-    MaterialApp(
+  runApp(MyWidget());
+}
+
+class MyWidget extends StatelessWidget {
+  MyWidget({super.key});
+
+  final MediaBloc _myBloc = MediaBloc(repository: MediaRepositoryImpl());
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
       title: "Make it personal",
       theme: ThemeData(useMaterial3: true),
-      home: const MyApp(),
-    ),
-  );
+      home: BlocProvider(
+        create: (context) => _myBloc,
+        child: HomePage(),
+      ),
+    );
+  }
+}
+
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  late MediaBloc mediaBloc;
+
+  @override
+  void initState() {
+    super.initState();
+
+    mediaBloc = BlocProvider.of<MediaBloc>(context);
+    mediaBloc.add(FetchMediasEvent());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: BlocBuilder<MediaBloc, MediaState>(
+        builder: (context, state) {
+          if (state is MediaInitialState) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (state is MediaLoadingState) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (state is MediaLoadedState) {
+            return MyApp(medias: state.media);
+          } else if (state is MediaErrorState) {
+            return Center(child: Text(state.message));
+          }
+          return Container();
+        },
+      ),
+    );
+  }
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  List<Media> medias;
+  MyApp({super.key, required this.medias});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -25,12 +84,11 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   late VideoPlayerController _videoController;
-  List<String> images = ["sea.jpg", "sunrise.jpg", "tree.jpg"];
 
   @override
   void initState() {
     super.initState();
-    _videoController = VideoPlayerController.asset('assets/MyDemoVideo.mp4')
+    _videoController = VideoPlayerController.asset(widget.medias[1].mediaUrl)
       ..initialize().then((_) {
         setState(() {
           _videoController.play();
@@ -96,17 +154,19 @@ class _MyAppState extends State<MyApp> {
               // Don't know why but Video was flickring hence, i used ClipRect
               ClipRect(child: VideoPlayer(_videoController)),
               ...(List.generate(
-                images.length,
+                widget.medias.length,
                 (index) {
-                  return Container(
-                    width: MediaQuery.of(context).size.width,
-                    margin: const EdgeInsets.symmetric(horizontal: 5.0),
-                    decoration: const BoxDecoration(color: Colors.amber),
-                    child: Image.asset(
-                      "assets/images/${images[index]}",
-                      fit: BoxFit.cover,
-                    ),
-                  );
+                  return widget.medias[index].type == "image"
+                      ? Container(
+                          width: MediaQuery.of(context).size.width,
+                          margin: const EdgeInsets.symmetric(horizontal: 5.0),
+                          decoration: const BoxDecoration(color: Colors.amber),
+                          child: Image.network(
+                            widget.medias[index].mediaUrl,
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      : VideoPlayer(_videoController);
                 },
               ).toList()),
             ],
@@ -117,7 +177,7 @@ class _MyAppState extends State<MyApp> {
               alignment: Alignment.topCenter,
               children: [
                 ...(List.generate(
-                  images.length + 1,
+                  widget.medias.length,
                   (index) {
                     return Align(
                       // Align Widget is used to set the Alignment animation (Top to Down and Down to Top)
@@ -133,7 +193,7 @@ class _MyAppState extends State<MyApp> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                titleList[index],
+                                widget.medias[index].title,
                                 style: const TextStyle(
                                     fontSize: 26, fontWeight: FontWeight.w300),
                               ),
